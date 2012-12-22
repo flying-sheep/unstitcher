@@ -1,0 +1,4 @@
+#!/bin/sh
+jar cvmf MANIFEST.MF unstitcher.jar net blocks.txt items.txt
+zipmerge -i unstitcher.jar /usr/share/scala/lib/scala-library.jar
+chmod +x unstitcher.jar
