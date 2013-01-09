@@ -31,18 +31,18 @@ object UnstitcherGui {
 }
 
 class UnstitcherGui extends JPanel with Loggable {
-	private val log = new JTextArea {
+	private val logPanel = new JTextArea {
 		setEditable(false)
 		setWrapStyleWord(true)
 		setLineWrap(true)
 	}
 	setPreferredSize(new Dimension(670, 480))
 	setLayout(new BorderLayout)
-	add(new JScrollPane(log, 22, 31))
+	add(new JScrollPane(logPanel, 22, 31))
 	
 	def log(text: String, args: Any*) {
-		log.append((text format (args: _*)) + "\n")
-		log.setCaretPosition(log.getDocument.getLength)
+		logPanel.append((text format (args: _*)) + "\n")
+		logPanel.setCaretPosition(logPanel.getDocument.getLength)
 	}
 	
 	new JFileChooser {

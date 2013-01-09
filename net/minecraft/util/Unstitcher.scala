@@ -17,25 +17,25 @@ import Unstitcher.SIDE
 
 class Unstitcher(inputFile: File, outputFile: File, log: Loggable) extends Runnable {
 	def run = try {
-		log.log("Selected texturepack '%s'", inputFile.getAbsolutePath)
-		log.log("Output will be saved to '%s'", outputFile.getAbsolutePath)
+		log("Selected texturepack '%s'", inputFile.getAbsolutePath)
+		log("Output will be saved to '%s'", outputFile.getAbsolutePath)
 		
 		val input  = new ZipFile(inputFile)
 		val result = new ZipOutputStream(new FileOutputStream(outputFile))
 		
-		log.log("Creating a copy of the texturepack...")
+		log("Creating a copy of the texturepack...")
 		
 		for (entry ← input.entries if !entry.isDirectory) {
 			val is = input getInputStream entry
 			entry.getName match {
 				case "terrain.png" ⇒
-					log.log("Unstitching terrain.png")
+					log("Unstitching terrain.png")
 					unstitchAll(is, result, "terrain", "blocks", "terrain.png")
 				case "gui/items.png" ⇒
-					log.log("Unstitching items.png")
+					log("Unstitching items.png")
 					unstitchAll(is, result, "item", "items", "gui/items.png")
 				case name ⇒
-					log.log("Copying %s", entry.getName)
+					log("Copying %s", entry.getName)
 					result.putNextEntry(new ZipEntry(name))
 					for (byte ← Iterator.continually(is.read).takeWhile(-1 !=))
 						result.write(Array(byte.toByte))
@@ -43,28 +43,30 @@ class Unstitcher(inputFile: File, outputFile: File, log: Loggable) extends Runna
 			}
 		}
 		
-		log.log("All done!")
-		log.log("Your items.png and terrain.png have been replaced with any images not cut from the image.")
-		log.log("The unstitched images can be found in textures/blocks/*.png and textures/items/*.png respectively.")
+		log("All done!")
+		log("Your items.png and terrain.png have been replaced with any images not cut from the image.")
+		log("The unstitched images can be found in textures/blocks/*.png and textures/items/*.png respectively.")
 		
 		input.close
 		result.close
 	} catch { case t ⇒
-		log.log("Error unstitching file!")
-		log.log(t.getStackTraceString)
+		log("Error unstitching file!")
+		log(t.getStackTraceString)
 		sys.error(t.getStackTraceString)
-		log.log("Stopping...")
+		log("Stopping...")
 	}
 	
-	def unstitchAll(input: InputStream,
-		output: ZipOutputStream,
-		typ: String,
-		folder: String,
-		original: String) {
+	/** Unstitches one spritesheet */
+	def unstitchAll(
+			input: InputStream,
+			output: ZipOutputStream,
+			typ: String,
+			folder: String,
+			original: String) {
 		val posFile = classOf[Unstitcher].getResource("/%s.txt" format folder)
 		val stitched = ImageIO read input
 		for ((name, image) ← unstitch(stitched, posFile)) {
-			log.log("Cutting out %s '%s'…", typ, name)
+			log("Cutting out %s '%s'…", typ, name)
 			output.putNextEntry(new ZipEntry("textures/%s/%s.png" format (folder, name)))
 			ImageIO.write(image, "png", output)
 			output.closeEntry
@@ -74,6 +76,8 @@ class Unstitcher(inputFile: File, outputFile: File, log: Loggable) extends Runna
 		output.closeEntry
 	}
 	
+	/** Creates an iterator over all tiles in the input images
+	  * which have a mapping in the positions file. */
 	def unstitch(stitched: BufferedImage, pos: URL) = {
 		val width  = stitched.getWidth  / SIDE
 		val height = stitched.getHeight / SIDE

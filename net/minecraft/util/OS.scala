@@ -11,12 +11,12 @@ case object UNKNOWN extends OS
 
 object OS {
 	val platform = sys.props("os.name").toLowerCase match {
-		case os if os.contains("win")     ⇒ WINDOWS
-		case os if os.contains("mac")     ⇒ MACOS
-		case os if os.contains("solaris") ⇒ SOLARIS
-		case os if os.contains("sunos")   ⇒ SOLARIS
-		case os if os.contains("linux")   ⇒ LINUX
-		case os if os.contains("unix")    ⇒ LINUX
+		case os if os contains "win"     ⇒ WINDOWS
+		case os if os contains "mac"     ⇒ MACOS
+		case os if os contains "solaris" ⇒ SOLARIS
+		case os if os contains "sunos"   ⇒ SOLARIS
+		case os if os contains "linux"   ⇒ LINUX
+		case os if os contains "unix"    ⇒ LINUX
 		case _ ⇒ UNKNOWN
 	}
 	
@@ -24,10 +24,10 @@ object OS {
 	val minecraftDir = platform match {
 		case LINUX | SOLARIS ⇒ new File(home, ".minecraft/")
 		case WINDOWS ⇒ sys.env.get("APPDATA") match {
-			case Some(a) ⇒ new File(a, ".minecraft/")
-			case None ⇒ new File(home, ".minecraft/")
+			case Some(a) ⇒ new File(a,    ".minecraft/")
+			case None    ⇒ new File(home, ".minecraft/")
 		}
 		case MACOS ⇒ new File(home, "Library/Application Support/minecraft")
-		case _ ⇒ new File(home, "minecraft/")
+		case _     ⇒ new File(home, "minecraft/")
 	}
 }
