@@ -9,16 +9,15 @@ object UnstitcherCli extends App with Loggable {
 		help
 		sys exit 0
 	}
-	args.length match {
-		case 0 ⇒ UnstitcherGui()
-		case 1 ⇒
-			val input  = new File(args(0))
+	args match {
+		case Array() ⇒ UnstitcherGui()
+		case Array(inputPath) ⇒
+			val input  = new File(inputPath)
 			val output = new File(input.getParentFile, "converted-" + input.getName)
 			Unstitcher(input, output, this).run
-		case 2 ⇒
-			val Array(input, output) = args.map(new File(_))
-			Unstitcher(input, output, this).run
-		case n ⇒ help
+		case Array(inputPath, outputPath) ⇒
+			Unstitcher(new File(inputPath), new File(outputPath), this).run
+		case _ ⇒ help
 	}
 	
 	def help = println("Usage: java -jar unstitcher.jar [-h | <input>.zip [<output>.zip]]")
