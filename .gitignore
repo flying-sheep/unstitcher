@@ -1,2 +1,6 @@
 *~
 *.class
+*.zip
+.classpath
+.project
+.settings

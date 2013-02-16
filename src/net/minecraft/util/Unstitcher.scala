@@ -70,7 +70,7 @@ class Unstitcher(inputFile: File, outputFile: File, log: Loggable) extends Runna
 		
 		input.close
 		result.close
-	} catch { case t ⇒
+	} catch { case t: Throwable ⇒
 		log("Error unstitching file!")
 		log("%s\n%s", t, t.getStackTraceString)
 		sys.error(t + "\n" + t.getStackTraceString)
@@ -127,8 +127,8 @@ class Unstitcher(inputFile: File, outputFile: File, log: Loggable) extends Runna
 			val y0 = yo * h
 			
 			for (x ← 0 until w; y ← 0 until h) {
-			//	setRGB(x, y, stitched.getRGB(x0 + x, y0 + y))
-				stitched.setRGB(x0 + x, y0 + y, 0)
+				setRGB(x, y, stitched.getRGB(x0 + x, y0 + y))
+			//	stitched.setRGB(x0 + x, y0 + y, 0)
 			}
 		}
 	
@@ -138,6 +138,8 @@ class Unstitcher(inputFile: File, outputFile: File, log: Loggable) extends Runna
 		val width  = stitched.getWidth  / SIDE
 		val height = stitched.getHeight / SIDE
 		
-		map map { case ((x, y), names) ⇒ (names, () ⇒ mkimg(stitched, x, y, width, height)) }
+		map map { case ((x, y), names) ⇒
+			(names, () ⇒ mkimg(stitched, x, y, width, height))
+		}
 	}
 }

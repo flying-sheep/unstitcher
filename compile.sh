@@ -2,4 +2,4 @@
 rm -rf build
 mkdir -p build
 
-scalac -sourcepath src -d build src/**/*.scala
+scalac -feature -sourcepath src -d build src/**/*.scala

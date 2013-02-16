@@ -11,10 +11,12 @@ object UnstitcherCli extends App with Loggable {
 	}
 	args match {
 		case Array() ⇒ UnstitcherGui()
-		case Array(inputPath) ⇒
-			val input  = new File(inputPath)
-			val output = new File(input.getParentFile, "converted-" + input.getName)
-			Unstitcher(input, output, this).run
+		case Array(inputPath) ⇒ new File(inputPath) match {
+			case dir if dir.isDirectory ⇒ UnstitcherGui(Some(dir))
+			case input ⇒
+				val output = new File(input.getParentFile, "converted-" + input.getName)
+				Unstitcher(input, output, this).run
+		}
 		case Array(inputPath, outputPath) ⇒
 			Unstitcher(new File(inputPath), new File(outputPath), this).run
 		case _ ⇒ help
