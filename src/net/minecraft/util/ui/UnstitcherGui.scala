@@ -1,13 +1,8 @@
 package net.minecraft.util.ui
 
 import java.awt.{ BorderLayout, Dimension }
-import java.awt.event.{ WindowAdapter, WindowEvent }
-import java.awt.image.BufferedImage
 import java.io._
-import java.util.Enumeration
-import java.util.zip.{ ZipEntry, ZipFile, ZipOutputStream }
 
-import javax.imageio.ImageIO
 import javax.swing._
 import javax.swing.filechooser.FileNameExtensionFilter
 
