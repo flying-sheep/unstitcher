@@ -106,19 +106,22 @@ class Unstitcher(inputFile: File, outputFile: File, log: Loggable) extends Runna
 	
 	/** Unstitches one spritesheet */
 	def unstitchAll(stitched: BufferedImage, output: ZipOutputStream, info: StitchInfo) {
-		for {
-			(names, mkimage) ← unstitch(stitched, info.map)
-			image = mkimage()
-			name ← names
-		} {
-			log("Cutting out %s '%s'…", info.typ, name)
-			output.putNextEntry(new ZipEntry("textures/%s/%s.png" format (info.folder, name)))
-			ImageIO.write(image, "png", output)
-			output.closeEntry
+		for (((x, y), names) ← info.map) {
+			val width  = stitched.getWidth  / SIDE
+			val height = stitched.getHeight / SIDE
+			
+			val image = mkimg(stitched, x, y, width, height)
+			
+			for (name ← names) {
+				log("Cutting out %s '%s'…", info.typ, name)
+				output.putNextEntry(new ZipEntry("textures/%s/%s.png" format (info.folder, name)))
+				ImageIO.write(image, "png", output)
+				output.closeEntry
+			}
+			//output.putNextEntry(new ZipEntry(info.original))
+			//ImageIO.write(stitched, "png", output)
+			//output.closeEntry
 		}
-		//output.putNextEntry(new ZipEntry(info.original))
-		//ImageIO.write(stitched, "png", output)
-		//output.closeEntry
 	}
 	
 	def mkimg(stitched: BufferedImage, xo: Int, yo: Int, w: Int, h: Int): BufferedImage =
@@ -131,15 +134,4 @@ class Unstitcher(inputFile: File, outputFile: File, log: Loggable) extends Runna
 			//	stitched.setRGB(x0 + x, y0 + y, 0)
 			}
 		}
-	
-	/** Creates an iterator over all tiles in the input images
-	  * which have a mapping in the positions file. */
-	def unstitch(stitched: BufferedImage, map: MultiMap[(Int, Int), String]) = {
-		val width  = stitched.getWidth  / SIDE
-		val height = stitched.getHeight / SIDE
-		
-		map map { case ((x, y), names) ⇒
-			(names, () ⇒ mkimg(stitched, x, y, width, height))
-		}
-	}
 }
