@@ -1,6 +1,8 @@
 *~
 *.class
 *.zip
-.classpath
-.project
-.settings
+/.classpath
+/.project
+/project
+/.settings
+/target
