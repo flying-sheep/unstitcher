@@ -1,10 +1,10 @@
 package net.minecraft.util.ui
 
 import java.awt.Dimension
+import java.awt.FileDialog
 import java.io._
 
 import javax.swing.UIManager
-import javax.swing.filechooser.FileNameExtensionFilter
 
 import scala.collection.JavaConversions._
 
@@ -17,15 +17,11 @@ object UnstitcherGui {
 			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName)
 		} catch { case e: Throwable ⇒ }
 		
-		new Frame {
+		new MainFrame {
 			title = "Minecraft Texture Unstitcher"
 			contents = new UnstitcherGui(inputFile)
 			centerOnScreen
-			pack
-			visible = true
-
-			override def closeOperation = dispose
-		}
+		} visible = true
 	}
 }
 
@@ -39,15 +35,23 @@ class UnstitcherGui(inputFile: Option[File] = None) extends ScrollPane with Logg
 	
 	def log(text: String, args: Any*) = logPanel.listData += (text format (args: _*)) + "\n"
 	
-	new FileChooser(inputFile getOrElse new File(OS.minecraftDir, "texturepacks")) {
+	val dialog = new FileDialog(null.asInstanceOf[java.awt.Frame], "Convert Texturepack") {
+		val _dir = inputFile getOrElse new File(OS.minecraftDir, "texturepacks")
+		setDirectory(_dir.getCanonicalPath)
 		log("Initialized. Please select a texturepack (zip only) for conversion. The output will be saved to the same directory in a separate zip.")
-		fileFilter = new FileNameExtensionFilter("Zip texture packs", "zip")
-		
-		if (showDialog(gui, "Convert Texturepack") == FileChooser.Result.Approve && selectedFile.isFile) {
-			val output = new File(selectedFile.getParentFile, "converted-" + selectedFile.getName)
-			new Thread(Unstitcher(selectedFile, output, UnstitcherGui.this)).start
-		} else {
-			sys exit 1
-		}
+		setFilenameFilter(new FilenameFilter {
+			def accept(dir: File, name: String) = name endsWith ".zip"
+		})
+		setVisible(true)
 	}
+	
+	Option(dialog.getFile) match {
+		case Some(name) ⇒
+			val input  = new File(dialog.getDirectory, name)
+			val output = new File(dialog.getDirectory, "converted-" + name)
+			new Thread(Unstitcher(input, output, UnstitcherGui.this)).start
+		case None ⇒ sys exit 1
+	}
+	
+	dialog.dispose
 }
