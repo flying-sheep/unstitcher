@@ -5,4 +5,6 @@
 /.cache
 /*project
 /.settings
+/.idea
+/unstitcher.iml
 /target
