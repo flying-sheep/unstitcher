@@ -7,37 +7,37 @@ import java.util.zip.{ ZipEntry, ZipFile, ZipOutputStream }
 import javax.imageio.ImageIO
 import scala.collection.JavaConversions._
 import scala.io.Source
-import scala.collection.mutable.{ MultiMap, HashMap, Set }
+import scala.collection.mutable
 
 object Unstitcher {
 	val SIDE = 16
 	def apply(i: File, o: File, l: Loggable) = new Unstitcher(i: File, o: File, l: Loggable)
-	implicit def asMultiMap[K, V](pairs: Iterator[(K, V)]): MultiMap[K, V] =
-		new HashMap[K, Set[V]] with MultiMap[K, V] {
+	implicit def asMultiMap[K, V](pairs: Iterator[(K, V)]): mutable.MultiMap[K, V] =
+		new mutable.HashMap[K, Set[V]] with mutable.MultiMap[K, V] {
 			for ((k, v) ← pairs) this.addBinding(k, v)
 		}
 	
-	def parseMapping(pos: URL): MultiMap[(Int, Int), String] =
-		Source.fromURL(pos).getLines.map { line ⇒
+	def parseMapping(pos: URL): mutable.MultiMap[(Int, Int), String] =
+		Source.fromURL(pos).getLines() map { line ⇒
 			val Array(coords, name) = line.split(" - ", 2)
 			val Array(x, y) = coords.split(",").map(_.toInt)
 			(x, y) → name
 		}
 	
-	object StitchInfo { val values = Set(blocks, items) }
+	object StitchInfo { val values = (Set(Blocks, Items) map { i ⇒ i.original → i }).toMap }
 	class StitchInfo(val typ: String, val folder: String, val original: String) {
-		val map = parseMapping(classOf[Unstitcher].getResource("/%s.txt" format folder))
+		val map = parseMapping(classOf[Unstitcher].getResource(s"/$folder.txt"))
 	}
-	val blocks = new StitchInfo("terrain", "blocks", "terrain.png")
-	val items  = new StitchInfo("item",    "items",  "gui/items.png")
+	val Blocks = new StitchInfo("terrain", "blocks", "terrain.png")
+	val Items  = new StitchInfo("item",    "items",  "gui/items.png")
 }
 
-import Unstitcher._
+import net.minecraft.util.Unstitcher.{ StitchInfo, SIDE }
 
 class Unstitcher(inputFile: File, outputFile: File, log: Loggable) extends Runnable {
-	def run = try {
-		log("Selected texturepack '%s'", inputFile.getAbsolutePath)
-		log("Output will be saved to '%s'", outputFile.getAbsolutePath)
+	def run() = try {
+		log(s"Selected texturepack '${inputFile.getAbsolutePath}'")
+		log(s"Output will be saved to '${inputFile.getAbsolutePath}'")
 		
 		val input  = new ZipFile(inputFile)
 		val result = new ZipOutputStream(new FileOutputStream(outputFile))
@@ -47,20 +47,20 @@ class Unstitcher(inputFile: File, outputFile: File, log: Loggable) extends Runna
 		for (entry ← input.entries if !entry.isDirectory) {
 			val is = input getInputStream entry
 			entry.getName match {
-				case original if StitchInfo.values map (_.original) contains original ⇒
-					val info = StitchInfo.values find (_.original == original) get
-					
-					log("Unstitching %s...", info.typ)
-					unstitchAll(ImageIO read is, result, info)
 				case anim if anim startsWith "anim/custom_" ⇒
-					log("Animation '%s' detected", anim)
+					log(s"Animation '$anim' detected")
 					handleAnim(is, result, anim)
-				case name ⇒
-					log("Copying %s", entry.getName)
-					result putNextEntry new ZipEntry(name)
-					for (byte ← Iterator.continually(is.read).takeWhile(-1 !=))
-						result write Array(byte toByte)
-					result.closeEntry
+				case name ⇒ StitchInfo.values.get(name) match {
+					case Some(info) ⇒
+						log(s"Unstitching ${info.typ}…")
+						unstitchAll(ImageIO read is, result, info)
+					case None =>
+						log(s"Copying $name")
+						result putNextEntry new ZipEntry(name)
+						for (byte ← Iterator.continually(is.read).takeWhile(-1 !=))
+							result write Array(byte toByte)
+						result.closeEntry()
+				}
 			}
 		}
 		
@@ -68,13 +68,14 @@ class Unstitcher(inputFile: File, outputFile: File, log: Loggable) extends Runna
 		log("Your items.png and terrain.png have been replaced with any images not cut from the image.")
 		log("The unstitched images can be found in textures/blocks/*.png and textures/items/*.png respectively.")
 		
-		input.close
-		result.close
+		input.close()
+		result.close()
 	} catch { case t: Throwable ⇒
 		log("Error unstitching file!")
-		log("%s\n%s", t, t.getStackTraceString)
-		sys.error(t + "\n" + t.getStackTraceString)
-		log("Stopping...")
+		val msg = s"$t\n${t.getStackTraceString}"
+		log(msg)
+		sys.error(msg)
+		log("Stopping…")
 	}
 	
 	def handleAnim(input: InputStream, output: ZipOutputStream, animPath: String) {
@@ -87,21 +88,21 @@ class Unstitcher(inputFile: File, outputFile: File, log: Loggable) extends Runna
 		
 		val target = anim match {
 			case lavaWaterR(lavaWater) ⇒
-				"textures/blocks/%s_flow.png" format (lavaWater)
+				s"textures/blocks/${lavaWater}_flow.png"
 			case terrainItemR(terrainItem, number) ⇒ terrainItem match {
 				case "terrain" ⇒ "textures/blocks/%s.png"
 				case "item"    ⇒ "textures/items/%s.png"
 				//TODO utilize parsemapping here
 			}
 			case _ ⇒
-				log("failed to find correct place for %s animation.", animPath)
+				log(s"failed to find correct place for $animPath animation.")
 				animPath
 		}
-		log("Copying %s to %s", animPath, target)
-		output.putNextEntry(new ZipEntry(target))
+		log(s"Copying $animPath to $target")
+		output putNextEntry new ZipEntry(target)
 		for (byte ← Iterator.continually(input.read).takeWhile(-1 !=))
 			output.write(Array(byte.toByte))
-		output.closeEntry
+		output.closeEntry()
 	}
 	
 	/** Unstitches one spritesheet */
@@ -113,25 +114,17 @@ class Unstitcher(inputFile: File, outputFile: File, log: Loggable) extends Runna
 			val image = mkimg(stitched, x, y, width, height)
 			
 			for (name ← names) {
-				log("Cutting out %s '%s'…", info.typ, name)
-				output.putNextEntry(new ZipEntry("textures/%s/%s.png" format (info.folder, name)))
-				ImageIO.write(image, "png", output)
-				output.closeEntry
+				log(s"Cutting out ${info.typ} '$name'…")
+				output putNextEntry new ZipEntry(s"textures/${info.folder}/$name.png")
+				ImageIO write (image, "png", output)
+				output.closeEntry()
 			}
-			//output.putNextEntry(new ZipEntry(info.original))
-			//ImageIO.write(stitched, "png", output)
-			//output.closeEntry
 		}
 	}
 	
-	def mkimg(stitched: BufferedImage, xo: Int, yo: Int, w: Int, h: Int): BufferedImage =
+	def mkimg(stitched: BufferedImage, x0: Int, y0: Int, w: Int, h: Int): BufferedImage =
 		new BufferedImage(w, h, BufferedImage.TYPE_4BYTE_ABGR) {
-			val x0 = xo * w
-			val y0 = yo * h
-			
-			for (x ← 0 until w; y ← 0 until h) {
-				setRGB(x, y, stitched.getRGB(x0 + x, y0 + y))
-			//	stitched.setRGB(x0 + x, y0 + y, 0)
-			}
+			for (x ← 0 until w; y ← 0 until h) 
+				setRGB(x, y, stitched.getRGB(x0*w + x, y0*h + y))
 		}
 }

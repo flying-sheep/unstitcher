@@ -4,6 +4,6 @@ package net.minecraft.util
   * defines apply as alias to it,
   * so it can be used as “log function” itself. */
 trait Loggable {
-	def   log(msg: String, args: Any*)
-	def apply(msg: String, args: Any*) = log(msg, args: _*)
+	def   log(msg: String)
+	def apply(msg: String) = log(msg)
 }

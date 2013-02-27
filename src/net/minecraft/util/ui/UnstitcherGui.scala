@@ -20,8 +20,8 @@ object UnstitcherGui {
 		new MainFrame {
 			title = "Minecraft Texture Unstitcher"
 			contents = new UnstitcherGui(inputFile)
-			centerOnScreen
-		} visible = true
+			centerOnScreen()
+		}.visible = true
 	}
 }
 
@@ -33,7 +33,7 @@ class UnstitcherGui(inputFile: Option[File] = None) extends ScrollPane with Logg
 	verticalScrollBarPolicy   = ScrollPane.BarPolicy.AsNeeded
 	horizontalScrollBarPolicy = ScrollPane.BarPolicy.Never
 	
-	def log(text: String, args: Any*) = logPanel.listData += (text format (args: _*)) + "\n"
+	def log(msg: String) = logPanel.listData += msg
 	
 	val dialog = new FileDialog(null.asInstanceOf[java.awt.Frame], "Convert Texturepack") {
 		val _dir = inputFile getOrElse new File(OS.minecraftDir, "texturepacks")
@@ -49,9 +49,9 @@ class UnstitcherGui(inputFile: Option[File] = None) extends ScrollPane with Logg
 		case Some(name) ⇒
 			val input  = new File(dialog.getDirectory, name)
 			val output = new File(dialog.getDirectory, "converted-" + name)
-			new Thread(Unstitcher(input, output, UnstitcherGui.this)).start
+			new Thread(Unstitcher(input, output, UnstitcherGui.this)).start()
 		case None ⇒ sys exit 1
 	}
 	
-	dialog.dispose
+	dialog.dispose()
 }

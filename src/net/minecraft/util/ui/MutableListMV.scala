@@ -4,25 +4,23 @@ import javax.swing._
 import javax.swing.event.ListDataListener
 
 import scala.swing._
+import scala.collection.mutable
+import scala.collection.Traversable
 
 /** A ListModel wrapping a manipulatable Buffer
   * Implementation based on DefaultListModel for the sake of simplicity */
-class BufferListModel[A] extends BufferWrapper[A] with ListModel[A] {
-	val underlying = new DefaultListModel[A]
+class BufferListModel[A] extends DefaultListModel[A] with mutable.Buffer[A] with mutable.IndexedSeqOptimized[A, BufferListModel[A]] {
+	def += (elem: A) = { Swing.onEDT(     addElement(elem)   ); this }
+	def +=:(elem: A) = { Swing.onEDT(insertElementAt(elem, 0)); this }
+	def update(n: Int, elem: A) = Swing.onEDT(setElementAt(elem, n))
 	
-	def +=(a: A) = { Swing.onEDT(underlying addElement a); this }
-	def insertAt(n: Int, item: A) = Swing.onEDT(underlying insertElementAt (item, n))
+	def insertAll(n: Int, elems: Traversable[A]) =
+		for ((elem, i) ← elems.toIterator.zipWithIndex)
+			insertElementAt(elem, n + i)
 	
-	def remove(n: Int): A = underlying remove n //TODO: onEDT
+	def apply(n: Int) = getElementAt(n)
 	
-	def        apply(n: Int) = underlying getElementAt n
-	def getElementAt(n: Int) = underlying getElementAt n
-	
-	def length  = underlying.size
-	def getSize = underlying.size
-	
-	def    addListDataListener(l: ListDataListener) = underlying addListDataListener l
-	def removeListDataListener(l: ListDataListener) = underlying removeListDataListener l
+	def length = size
 }
 
 /** Version of ListView with a Buffer as listData.
@@ -35,8 +33,8 @@ class MutableListView[A] extends ListView[A] {
 	override val listData = new BufferListModel[A]
 	typedPeer setModel listData
 	
-	override def listData_=(items: Seq[A]) = {
-		listData.clear
+	override def listData_=(items: Seq[A]) {
+		listData.clear()
 		listData ++= items
 	}
 }

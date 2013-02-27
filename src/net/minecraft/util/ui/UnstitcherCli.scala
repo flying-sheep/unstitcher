@@ -6,7 +6,7 @@ import net.minecraft.util.Unstitcher
 
 object UnstitcherCli extends App with Loggable {
 	if (List("-h", "--help").exists(args contains)) {
-		help
+		help()
 		sys exit 0
 	}
 	args match {
@@ -15,14 +15,14 @@ object UnstitcherCli extends App with Loggable {
 			case dir if dir.isDirectory ⇒ UnstitcherGui(Some(dir))
 			case input ⇒
 				val output = new File(input.getParentFile, "converted-" + input.getName)
-				Unstitcher(input, output, this).run
+				Unstitcher(input, output, this).run()
 		}
 		case Array(inputPath, outputPath) ⇒
-			Unstitcher(new File(inputPath), new File(outputPath), this).run
-		case _ ⇒ help
+			Unstitcher(new File(inputPath), new File(outputPath), this).run()
+		case _ ⇒ help()
 	}
 	
-	def help = println("Usage: java -jar unstitcher.jar [-h | <input>.zip [<output>.zip]]")
+	def help() = println("Usage: java -jar unstitcher.jar [-h | <input>.zip [<output>.zip]]")
 	
-	def log(text: String, args: Any*) = println(text format (args: _*))
+	def log(msg: String) = println(msg)
 }

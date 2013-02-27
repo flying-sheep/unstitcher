@@ -2,7 +2,7 @@ package net.minecraft.util
 
 import java.io.File
 
-sealed abstract trait OS
+sealed trait OS
 
 object OS {
 	case object Windows extends OS
@@ -29,6 +29,6 @@ object OS {
 			case None    ⇒ new File(home, ".minecraft/")
 		}
 		case OSX ⇒ new File(home, "Library/Application Support/minecraft")
-		case _     ⇒ new File(home, "minecraft/")
+		case _   ⇒ new File(home, "minecraft/")
 	}
 }
