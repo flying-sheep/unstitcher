@@ -97,13 +97,14 @@ class Unstitcher(inputFile: File, outputFile: File, log: Loggable) extends Runna
 		//TODO: real handling of lava and water
 		val animR = """^anim/custom_(.+)\.png$""".r
 		val animR(anim) = animPath
-		
-		val lavaWaterR = """^(lava|water)_flowing$""".r
+	 	
+		val lavaWaterR = """^(lava|water)_(still|flowing)$""".r
 		val terrainItemR = """^(terrain|item)_(\d+)$""".r
 		
 		val target = anim match {
-			case lavaWaterR(lavaWater) ⇒
-				s"textures/blocks/${lavaWater}_flow.png" //TODO 32×32
+			case lavaWaterR(lavaWater, move) ⇒
+				val suffix = if (move == "flowing") "_flow" else ""
+				s"textures/blocks/${lavaWater}$suffix.png" //TODO 32×32
 			case terrainItemR(typ, number) ⇒
 				val num = number.toInt
 				val xy = (num % SIDE, num / SIDE)
