@@ -1,12 +1,9 @@
 package net.minecraft.util.ui
 
-import java.awt.Dimension
 import java.awt.FileDialog
 import java.io._
 
 import javax.swing.UIManager
-
-import scala.collection.JavaConversions._
 
 import net.minecraft.util._
 import scala.swing._
@@ -38,7 +35,7 @@ class UnstitcherGui(inputFile: Option[File] = None) extends ScrollPane with Logg
 	val dialog = new FileDialog(null.asInstanceOf[java.awt.Frame], "Convert Texturepack") {
 		val _dir = inputFile getOrElse new File(OS.minecraftDir, "texturepacks")
 		setDirectory(_dir.getCanonicalPath)
-		log("Initialized. Please select a texturepack (zip only) for conversion. The output will be saved to the same directory in a separate zip.")
+		log(html"Initialized. Please select a texturepack (zip only) for conversion.\nThe output will be saved to the same directory in a separate zip.")
 		setFilenameFilter(new FilenameFilter {
 			def accept(dir: File, name: String) = name endsWith ".zip"
 		})
@@ -48,7 +45,7 @@ class UnstitcherGui(inputFile: Option[File] = None) extends ScrollPane with Logg
 	Option(dialog.getFile) match {
 		case Some(name) ⇒
 			val input  = new File(dialog.getDirectory, name)
-			val output = new File(dialog.getDirectory, "converted-" + name)
+			val output = new File(dialog.getDirectory, s"converted-$name")
 			new Thread(Unstitcher(input, output, UnstitcherGui.this)).start()
 		case None ⇒ sys exit 1
 	}

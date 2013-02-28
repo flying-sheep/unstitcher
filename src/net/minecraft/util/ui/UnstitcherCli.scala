@@ -1,8 +1,7 @@
 package net.minecraft.util.ui
 
 import java.io.File
-import net.minecraft.util.Loggable
-import net.minecraft.util.Unstitcher
+import net.minecraft.util.{ Loggable, Unstitcher }
 
 object UnstitcherCli extends App with Loggable {
 	if (List("-h", "--help").exists(args contains)) {

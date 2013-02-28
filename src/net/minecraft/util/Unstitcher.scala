@@ -3,8 +3,10 @@ package net.minecraft.util
 import java.awt.image.BufferedImage
 import java.io._
 import java.net.URL
-import java.util.zip.{ ZipEntry, ZipFile, ZipOutputStream }
+import java.util.zip._
+
 import javax.imageio.ImageIO
+
 import scala.collection.JavaConversions._
 import scala.io.Source
 import scala.collection.mutable
@@ -12,27 +14,32 @@ import scala.collection.mutable
 object Unstitcher {
 	val SIDE = 16
 	def apply(i: File, o: File, l: Loggable) = new Unstitcher(i: File, o: File, l: Loggable)
-	implicit def asMultiMap[K, V](pairs: Iterator[(K, V)]): mutable.MultiMap[K, V] =
-		new mutable.HashMap[K, Set[V]] with mutable.MultiMap[K, V] {
-			for ((k, v) ← pairs) this.addBinding(k, v)
-		}
+	class MultiMap[K, V](pairs: Iterator[(K, V)])
+			extends mutable.HashMap[K, mutable.Set[V]] with mutable.MultiMap[K, V] {
+		for ((k, v) ← pairs) this.addBinding(k, v)
+	}
 	
-	def parseMapping(pos: URL): mutable.MultiMap[(Int, Int), String] =
+	def parseMapping(pos: URL) = new MultiMap(
 		Source.fromURL(pos).getLines() map { line ⇒
 			val Array(coords, name) = line.split(" - ", 2)
 			val Array(x, y) = coords.split(",").map(_.toInt)
 			(x, y) → name
-		}
+		})
 	
-	object StitchInfo { val values = (Set(Blocks, Items) map { i ⇒ i.original → i }).toMap }
-	class StitchInfo(val typ: String, val folder: String, val original: String) {
+	object StitchInfo {
+		val values     = Set(Blocks, Items)
+		val byType     = (values map { i ⇒ i.typ      → i }).toMap
+		val byFolder   = (values map { i ⇒ i.folder   → i }).toMap
+		val byOriginal = (values map { i ⇒ i.original → i }).toMap
+	}
+	case class StitchInfo(typ: String, folder: String, original: String) {
 		val map = parseMapping(classOf[Unstitcher].getResource(s"/$folder.txt"))
 	}
-	val Blocks = new StitchInfo("terrain", "blocks", "terrain.png")
-	val Items  = new StitchInfo("item",    "items",  "gui/items.png")
+	val Blocks = StitchInfo("terrain", "blocks", "terrain.png")
+	val Items  = StitchInfo("item",    "items",  "gui/items.png")
 }
 
-import net.minecraft.util.Unstitcher.{ StitchInfo, SIDE }
+import net.minecraft.util.Unstitcher.{ StitchInfo, SIDE, Blocks, Items }
 
 class Unstitcher(inputFile: File, outputFile: File, log: Loggable) extends Runnable {
 	def run() = try {
@@ -42,25 +49,34 @@ class Unstitcher(inputFile: File, outputFile: File, log: Loggable) extends Runna
 		val input  = new ZipFile(inputFile)
 		val result = new ZipOutputStream(new FileOutputStream(outputFile))
 		
-		log("Creating a copy of the texturepack...")
+		log("Creating a copy of the texturepack…")
 		
-		for (entry ← input.entries if !entry.isDirectory) {
+		val (anims, nonAnims) = input.entries
+			.filter(!_.isDirectory)
+			.map(entry ⇒ (entry.getName, entry))
+			.partition(_._1 startsWith "anim/custom_")
+		
+		//handle just animations first to ensure
+		//that those end up in the pack
+		for ((name, anim) ← anims)
+			handleAnim(input getInputStream anim, result, name)
+		
+		for ((name, entry) ← nonAnims) {
 			val is = input getInputStream entry
-			entry.getName match {
-				case anim if anim startsWith "anim/custom_" ⇒
-					log(s"Animation '$anim' detected")
-					handleAnim(is, result, anim)
-				case name ⇒ StitchInfo.values.get(name) match {
-					case Some(info) ⇒
-						log(s"Unstitching ${info.typ}…")
-						unstitchAll(ImageIO read is, result, info)
-					case None =>
-						log(s"Copying $name")
+			StitchInfo.byOriginal get name match {
+				case Some(info) ⇒
+					log(s"Unstitching ${info.typ}…")
+					unstitchAll(ImageIO read is, result, info)
+				case None ⇒
+					log(s"Copying $name")
+					try {
 						result putNextEntry new ZipEntry(name)
-						for (byte ← Iterator.continually(is.read).takeWhile(-1 !=))
+						for (byte ← Iterator continually is.read takeWhile (-1 !=))
 							result write Array(byte toByte)
 						result.closeEntry()
-				}
+					} catch { case _: ZipException ⇒
+						log(s"Animation with name $name exists: not copying this")
+					}
 			}
 		}
 		
@@ -72,9 +88,8 @@ class Unstitcher(inputFile: File, outputFile: File, log: Loggable) extends Runna
 		result.close()
 	} catch { case t: Throwable ⇒
 		log("Error unstitching file!")
-		val msg = s"$t\n${t.getStackTraceString}"
-		log(msg)
-		sys.error(msg)
+		log(   html"$t\n${t.getStackTraceString}")
+		sys error s"$t\n${t.getStackTraceString}"
 		log("Stopping…")
 	}
 	
@@ -88,12 +103,14 @@ class Unstitcher(inputFile: File, outputFile: File, log: Loggable) extends Runna
 		
 		val target = anim match {
 			case lavaWaterR(lavaWater) ⇒
-				s"textures/blocks/${lavaWater}_flow.png"
-			case terrainItemR(terrainItem, number) ⇒ terrainItem match {
-				case "terrain" ⇒ "textures/blocks/%s.png"
-				case "item"    ⇒ "textures/items/%s.png"
-				//TODO utilize parsemapping here
-			}
+				s"textures/blocks/${lavaWater}_flow.png" //TODO 32×32
+			case terrainItemR(typ, number) ⇒
+				val num = number.toInt
+				val xy = (num % SIDE, num / SIDE)
+				
+				val info = StitchInfo byType typ
+				val name = info.map(xy).head
+				s"textures/${info.folder}/$name.png"
 			case _ ⇒
 				log(s"failed to find correct place for $animPath animation.")
 				animPath
@@ -115,14 +132,18 @@ class Unstitcher(inputFile: File, outputFile: File, log: Loggable) extends Runna
 			
 			for (name ← names) {
 				log(s"Cutting out ${info.typ} '$name'…")
-				output putNextEntry new ZipEntry(s"textures/${info.folder}/$name.png")
-				ImageIO write (image, "png", output)
-				output.closeEntry()
+				try {
+					output putNextEntry new ZipEntry(s"textures/${info.folder}/$name.png")
+					ImageIO write (image, "png", output)
+					output.closeEntry()
+				} catch { case _: ZipException ⇒
+					log(s"Animation with name $name exists: not copying block")
+				}
 			}
 		}
 	}
 	
-	def mkimg(stitched: BufferedImage, x0: Int, y0: Int, w: Int, h: Int): BufferedImage =
+	def mkimg(stitched: BufferedImage, x0: Int, y0: Int, w: Int, h: Int) =
 		new BufferedImage(w, h, BufferedImage.TYPE_4BYTE_ABGR) {
 			for (x ← 0 until w; y ← 0 until h) 
 				setRGB(x, y, stitched.getRGB(x0*w + x, y0*h + y))

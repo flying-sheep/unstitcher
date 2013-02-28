@@ -4,23 +4,33 @@ import javax.swing._
 import javax.swing.event.ListDataListener
 
 import scala.swing._
-import scala.collection.mutable
-import scala.collection.Traversable
+import scala.collection.{ mutable, Traversable }
 
 /** A ListModel wrapping a manipulatable Buffer
   * Implementation based on DefaultListModel for the sake of simplicity */
-class BufferListModel[A] extends DefaultListModel[A] with mutable.Buffer[A] with mutable.IndexedSeqOptimized[A, BufferListModel[A]] {
-	def += (elem: A) = { Swing.onEDT(     addElement(elem)   ); this }
-	def +=:(elem: A) = { Swing.onEDT(insertElementAt(elem, 0)); this }
-	def update(n: Int, elem: A) = Swing.onEDT(setElementAt(elem, n))
+class BufferListModel[A] extends ListModel[A] with mutable.Buffer[A] {
+	val lm = new DefaultListModel[A]
 	
+	def += (elem: A) = { Swing.onEDT(lm      addElement elem     ); this }
+	def +=:(elem: A) = { Swing.onEDT(lm insertElementAt (elem, 0)); this }
 	def insertAll(n: Int, elems: Traversable[A]) =
 		for ((elem, i) ← elems.toIterator.zipWithIndex)
-			insertElementAt(elem, n + i)
+			lm insertElementAt (elem, n + i)
 	
-	def apply(n: Int) = getElementAt(n)
+	def remove(n: Int) = lm remove n
+	def clear() = lm.clear()
 	
-	def length = size
+	def update(n: Int, elem: A) = Swing.onEDT(lm setElementAt (elem, n))
+	
+	def apply       (n: Int) = lm getElementAt n
+	def getElementAt(n: Int) = lm getElementAt n
+	
+	def length  = lm.size
+	def getSize = lm.size
+	def iterator = Iterator.range(0, size).map(i ⇒ lm getElementAt i)
+
+	def    addListDataListener(l: ListDataListener) = lm    addListDataListener l
+	def removeListDataListener(l: ListDataListener) = lm removeListDataListener l
 }
 
 /** Version of ListView with a Buffer as listData.
